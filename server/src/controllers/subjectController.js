@@ -1,17 +1,16 @@
-const { db } = require("../config/firebaseAdmin");
+const { db } = require("../utils/dbService");
 const subjectsCollection = db.collection("subjects");
 
 exports.createSubject = async (req, res) => {
   try {
-    const { nume } = req.body;
+    const { name } = req.body;
 
-    if (!nume) {
+    if (!name) {
       return res.status(400).send({ message: "Subject name is mandatory." });
     }
 
     const newSubject = {
-      nume,
-      profesorIds: req.body.profesorIds || [],
+      name,
     };
 
     const docRef = await subjectsCollection.add(newSubject);

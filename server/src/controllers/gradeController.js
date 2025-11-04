@@ -1,9 +1,13 @@
-const { db } = require("../config/firebaseAdmin");
+const { db } = require("../utils/dbService");
 const gradesCollection = db.collection("grades");
+const subjectsCollection = db.collection("subjects");
 
 exports.createGrade = async (req, res) => {
   try {
     const { studentId, subjectId, valoare, data } = req.body;
+
+    const loggedInUserId = req.user.uid;
+    const loggedInUserRole = req.user.role;
 
     if (!studentId || !subjectId || !valoare) {
       return res.status(400).send({
@@ -16,10 +20,52 @@ exports.createGrade = async (req, res) => {
         .send({ message: "Grade must be between 1 and 10." });
     }
 
+    if (loggedInUserRole === "profesor") {
+      const studentDoc = await usersCollection.doc(studentId).get();
+
+      if (
+        !studentDoc.exists ||
+        studentDoc.data().role !== "elev" ||
+        !studentDoc.data().classId
+      ) {
+        return res.status(404).send({
+          message: "Student wasn't found or isn't in any class.",
+        });
+      }
+
+      const studentClassId = studentDoc.data().classId;
+
+      const classDoc = await classesCollection.doc(studentClassId).get();
+
+      if (!classDoc.exists) {
+        return res.status(404).send({
+          message: "Student's class not found.",
+        });
+      }
+
+      const teachersList = classDoc.data().teachersList || [];
+
+      const hasAccesToGrade = teachersList.find(
+        (tl) => tl.subjectId === subjectId && tl.profesorId === loggedInUserId
+      );
+
+      if (!hasAccesToGrade) {
+        return res.status(403).send({
+          message:
+            "Forbbiden action! You don't have permision to teach that subject!",
+        });
+      }
+    } else if (loggedInUserRole !== "admin") {
+      return res.status(403).send({
+        message: "Forbbiden action! You dont have any permision adding grades.",
+      });
+    }
+
     const newGrade = {
       studentId,
       subjectId,
       valoare,
+      profesorId: loggedInUserId,
       data: data ? new Date(data) : new Date(),
     };
 
@@ -35,7 +81,23 @@ exports.createGrade = async (req, res) => {
 exports.getGrades = async (req, res) => {
   try {
     const { studentId, subjectId } = req.query;
+    const { uid, role } = req.user;
+
     let query = gradesCollection;
+
+    if (role === "elev") {
+      query = query.where("studentId", "==", uid);
+    } else if (role === "profesor") {
+      query = query.where("profesorId", "==", uid);
+
+      if (studentId) {
+        query = query.where("studentId", "==", studentId);
+      }
+    } else if (role === "admin") {
+      if (studentId) {
+        query = query.where("studentId", "==", studentId);
+      }
+    }
 
     if (studentId) {
       query = query.where("studentId", "==", studentId);

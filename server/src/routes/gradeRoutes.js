@@ -1,17 +1,17 @@
 const express = require("express");
-const gradeController = require("../controllers/subjectController");
+const gradeController = require("../controllers/gradeController");
+const {
+  checkAuthAndRole,
+  checkRole,
+} = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-router
-  .route("/")
-  .post(gradeController.createSubject)
-  .get(gradeController.getAllSubjects);
+router.use(checkAuthAndRole);
 
 router
-  .route("/:id")
-  .get(gradeController.getSubjectById)
-  .put(gradeController.updateSubject)
-  .delete(gradeController.deleteSubject);
+  .route("/")
+  .post(checkRole(["admin", "profesor"]), gradeController.createGrade)
+  .get(checkRole(["admin", "profesor", "elev"]), gradeController.getGrades);
 
 module.exports = router;

@@ -1,12 +1,18 @@
 const express = require("express");
 const classController = require("../controllers/classController");
+const {
+  checkAuthAndRole,
+  checkRole,
+} = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
+router.use(checkAuthAndRole);
+
 router
   .route("/")
-  .post(classController.createClass)
-  .get(classController.getAllClasses);
+  .post(checkRole(["admin"]), classController.createClass)
+  .get(checkRole(["admin"]), classController.getAllClasses);
 
 router.route("/:id").get(classController.getClassById);
 

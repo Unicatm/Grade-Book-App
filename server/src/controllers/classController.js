@@ -3,20 +3,23 @@ const classesCollection = db.collection("classes");
 
 exports.createClass = async (req, res) => {
   try {
-    const { name, classTeacherId } = req.body;
+    const { name, classTeacherId, teachersList } = req.body;
 
     if (!name) {
       return res
         .status(400)
-        .send({ message: "Name of the class is required!" });
+        .send({ message: "'name' is required!" });
     }
 
     const newClass = {
-      nume,
+      name,
       classTeacherId: classTeacherId || null,
+      teachersList: teachersList || [],
     };
 
     await classesCollection.add(newClass);
+
+    res.status(201).json({ message: "Class was created successfully!" });
   } catch (error) {
     res
       .status(500)

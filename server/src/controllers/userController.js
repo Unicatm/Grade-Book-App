@@ -1,23 +1,35 @@
 const { db } = require("../utils/dbService");
 const usersCollection = db.collection("users");
+const bcrypt = require("bcryptjs");
 
 exports.createUser = async (req, res) => {
-  const { email, name, role, classId } = req.body;
+  const { email, password, name, role, classId } = req.body;
+  const saltRounds = 10;
 
-  if (!email || !name || !role) {
+  if (!email || !password || !name || !role) {
     return res.status(400).json({ message: "Email, Name and Role required." });
   }
   if (!["admin", "profesor", "elev"].includes(role)) {
     return res.status(400).json({ message: "Invalide role." });
   }
 
+  if (role === "elev" && !classId) {
+    return res.status(400).json({ message: "'elev' role needs a 'classId'" });
+  }
+
   try {
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
     const newUser = {
       email,
+      password: hashedPassword,
       name,
       role,
-      classId,
     };
+
+    if (role === "elev") {
+      newUser.classId = classId;
+    }
 
     await usersCollection.add(newUser);
 
