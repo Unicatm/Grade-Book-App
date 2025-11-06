@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const { db } = require("../utils/dbService");
+const usersCollection = db.collection("users");
 
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -23,6 +24,12 @@ exports.checkAuthAndRole = async (req, res, next) => {
     const decoded = jwt.verify(token, jwtSecret);
 
     const { uid, role, email } = decoded;
+
+    const userDoc = await usersCollection.doc(uid).get();
+
+    if (!userDoc.exists) {
+      return res.status(403).send({ message: "User not found in database." });
+    }
 
     req.user = {
       uid: uid,

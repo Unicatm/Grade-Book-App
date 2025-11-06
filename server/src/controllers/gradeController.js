@@ -1,6 +1,7 @@
 const { db } = require("../utils/dbService");
 const gradesCollection = db.collection("grades");
-const subjectsCollection = db.collection("subjects");
+const usersCollection = db.collection("users");
+const classesCollection = db.collection("classes");
 
 exports.createGrade = async (req, res) => {
   try {
@@ -117,5 +118,77 @@ exports.getGrades = async (req, res) => {
     res
       .status(500)
       .send({ message: "Error getting all grades", error: error.message });
+  }
+};
+
+exports.updateGrade = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { valoare, data } = req.body;
+
+    const updateData = {};
+    if (valoare) updateData.valoare = valoare;
+    if (data) updateData.data = new Date(data);
+
+    if (Object.keys(updateData).length === 0) {
+      return res
+        .status(400)
+        .send({ message: "You have to send the value or the date." });
+    }
+    if (
+      valoare &&
+      (typeof valoare !== "number" || valoare < 1 || valoare > 10)
+    ) {
+      return res
+        .status(400)
+        .send({ message: "The grade should be between 1 and 10" });
+    }
+
+    const docRef = gradesCollection.doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).send({ message: "The grade wasn't found." });
+    }
+
+    const gradeData = doc.data();
+    if (req.user.role !== "admin" && gradeData.profesorId !== req.user.uid) {
+      return res.status(403).send({
+        message: "You can modify only your own grades.",
+      });
+    }
+
+    await docRef.update(updateData);
+    res.status(200).send({ message: "Grade updated succesfully!", id: id });
+  } catch (error) {
+    res
+      .status(500)
+      .send({ message: "Error to update the grade", error: error.message });
+  }
+};
+
+exports.deleteGrade = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const docRef = gradesCollection.doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).send({ message: "The grade wasn't found." });
+    }
+
+    const gradeData = doc.data();
+    if (req.user.role !== "admin" && gradeData.profesorId !== req.user.uid) {
+      return res.status(403).send({
+        message: "You can modify only your own grades.",
+      });
+    }
+
+    await docRef.delete();
+    res.status(200).send({ message: "Grade deleted succesfully!" });
+  } catch (error) {
+    res
+      .status(500)
+      .send({ message: "Error deleting the grade", error: error.message });
   }
 };

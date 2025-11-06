@@ -6,9 +6,7 @@ exports.createClass = async (req, res) => {
     const { name, classTeacherId, teachersList } = req.body;
 
     if (!name) {
-      return res
-        .status(400)
-        .send({ message: "'name' is required!" });
+      return res.status(400).send({ message: "'name' is required!" });
     }
 
     const newClass = {
@@ -56,5 +54,49 @@ exports.getClassById = async (req, res) => {
     res
       .status(500)
       .send({ message: "Error getting the classes.", error: error.message });
+  }
+};
+
+exports.updateClass = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    if (!updateData || Object.keys(updateData).length === 0) {
+      return res.status(400).send({ message: "No data sent for update." });
+    }
+
+    const docRef = classesCollection.doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).send({ message: "The class wasn't found." });
+    }
+
+    await docRef.update(updateData);
+    res.status(200).send({ message: "Class updated!", id: id });
+  } catch (error) {
+    res
+      .status(500)
+      .send({ message: "Error to update the class.", error: error.message });
+  }
+};
+
+exports.deleteClass = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const docRef = classesCollection.doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).send({ message: "Class not found." });
+    }
+
+    await docRef.delete();
+    res.status(200).send({ message: "Class was deleted succesfully!" });
+  } catch (error) {
+    res
+      .status(500)
+      .send({ message: "Error deleting the class.", error: error.message });
   }
 };
