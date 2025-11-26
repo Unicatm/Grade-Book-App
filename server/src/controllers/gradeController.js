@@ -2,6 +2,14 @@ const { db } = require("../utils/dbService");
 const gradesCollection = db.collection("grades");
 const usersCollection = db.collection("users");
 const classesCollection = db.collection("classes");
+const subjectsCollection = db.collection("subjects");
+
+const firestoreTimestampToJSDate = (timestamp) => {
+  if (timestamp && timestamp._seconds) {
+    return new Date(timestamp._seconds * 1000);
+  }
+  return null;
+};
 
 exports.createGrade = async (req, res) => {
   try {
@@ -90,7 +98,6 @@ exports.getGrades = async (req, res) => {
       query = query.where("studentId", "==", uid);
     } else if (role === "profesor") {
       query = query.where("profesorId", "==", uid);
-
       if (studentId) {
         query = query.where("studentId", "==", studentId);
       }
@@ -100,20 +107,47 @@ exports.getGrades = async (req, res) => {
       }
     }
 
-    if (studentId) {
-      query = query.where("studentId", "==", studentId);
-    }
     if (subjectId) {
       query = query.where("subjectId", "==", subjectId);
     }
 
     const snapshot = await query.get();
-    const grades = [];
+    const gradesRaw = [];
     snapshot.forEach((doc) => {
-      grades.push({ id: doc.id, ...doc.data() });
+      gradesRaw.push({ id: doc.id, ...doc.data() });
     });
 
-    res.status(200).send(grades);
+    const subjectIds = [...new Set(gradesRaw.map((g) => g.subjectId))];
+
+    const subjectLookups = await Promise.all(
+      subjectIds.map((id) => subjectsCollection.doc(id).get())
+    );
+    const subjectMap = subjectLookups.reduce((map, doc) => {
+      if (doc.exists) {
+        map[doc.id] = doc.data().name || "Materie Necunoscută";
+      }
+      return map;
+    }, {});
+
+    const finalGrades = [];
+
+    snapshot.forEach((doc) => {
+      const gradeData = doc.data();
+
+      finalGrades.push({
+        id: doc.id,
+        valoare: gradeData.valoare,
+        description: gradeData.description,
+        studentId: gradeData.studentId,
+        data: firestoreTimestampToJSDate(gradeData.data),
+        subject: {
+          id: gradeData.subjectId,
+          name: subjectMap[gradeData.subjectId] || "Eroare Materie",
+        },
+      });
+    });
+
+    res.status(200).send(finalGrades);
   } catch (error) {
     res
       .status(500)
